@@ -34,6 +34,26 @@ const budgetController = ( function () {
         return Math.random().toString( 36 ).replace( /[^a-z]+/g, '' ).substr( 0, 5 )
     }
 
+    const calculateBudgetFields = function () {
+        data.budget = data.totalIncome - data.totalExpenses;
+        data.percentage = ( data.totalIncome > 0 ) ? Math.round( ( data.totalExpenses / data.totalIncome ) * 100 ) : -1;
+
+    }
+
+    const removeItem = function ( { type, id } ) {
+
+        if ( type === 'inc' ) {
+            // get the item with id  and remove from the array
+            data.allIncomes = data.allIncomes.filter( el => el.id !== id );
+            data.totalIncome = data.allIncomes.reduce( ( acc, curr ) => acc + curr.amount, 0 );
+        } else {
+            data.allExpenses = data.allExpenses.filter( el => el.id !== id );
+            data.totalExpenses = data.allExpenses.reduce( ( acc, curr ) => acc + curr.amount, 0 );
+        }
+        calculateBudgetFields();
+
+    }
+
 
     return {
         addItem: function ( itemObj ) {
@@ -49,8 +69,7 @@ const budgetController = ( function () {
                 data.allExpenses.push( item );
                 data.totalExpenses = item.getTotalExpense( data.allExpenses )
             }
-            data.budget = data.totalIncome - data.totalExpenses;
-            data.percentage = ( data.totalIncome > 0 ) ? Math.round( ( data.totalExpenses / data.totalIncome ) * 100 ) : -1;
+            calculateBudgetFields();
             return { item, type };
         },
         data,
@@ -61,7 +80,8 @@ const budgetController = ( function () {
                 totalIncome: data.totalIncome,
                 totalExpenses: data.totalExpenses
             }
-        }
+        },
+        removeItem
 
 
     }
@@ -86,7 +106,8 @@ const UIController = ( function () {
         budgetValue: '.budget__value',
         budgetIncomeValue: '.budget__income--value',
         budgetExpenseValue: '.budget__expenses--value',
-        budgetExpensePercentage: '.budget__expenses--percentage'
+        budgetExpensePercentage: '.budget__expenses--percentage',
+        budgetContainer: '.container'
     }
     const addItem = function ( { item, type } ) {
         const incomeListTemplate = ( type === 'inc' ) ? document.querySelector( DOMStrings.incomeListClass )
@@ -129,6 +150,15 @@ const UIController = ( function () {
 
     }
 
+    const removeItem = function ( item, type ) {
+        if ( type === 'inc' ) {
+            document.querySelector( DOMStrings.incomeListClass ).removeChild( item )
+        } else {
+            document.querySelector( DOMStrings.expenseListClass ).removeChild( item )
+        }
+
+    }
+
 
 
     return {
@@ -143,6 +173,7 @@ const UIController = ( function () {
         clearInputField,
         validateFields,
         updateBudget,
+        removeItem
     }
 
 } )()
@@ -175,11 +206,35 @@ const appController = ( function ( UICtrl, budgtCtrl ) {
             UICtrl.updateBudget( budget )
 
 
+
         }
+
+    }
+
+    const ctrlDeleteItem = function ( e ) {
+
+        const item = e.target.parentNode.parentNode.parentNode.parentNode;
+        const [type, id] = item.dataset.value.split( '-' );
+
+        // Remove the Item from the budgetController
+
+        budgtCtrl.removeItem( { type, id } )
+
+        // Update the UI
+
+        UIController.removeItem( item, type )
+
+        //Update the Budget
+        const budget = budgtCtrl.getBudget();
+
+        // display the budget
+
+        UICtrl.updateBudget( budget );
 
 
 
     }
+
     const setUpEventListeners = function () {
         document.querySelector( UICtrl.DOMStrings.addButtonClass ).addEventListener( 'click', ctrlAddItem )
 
@@ -188,6 +243,8 @@ const appController = ( function ( UICtrl, budgtCtrl ) {
                 ctrlAddItem()
             }
         } )
+
+        document.querySelector( UICtrl.DOMStrings.budgetContainer ).addEventListener( 'click', ctrlDeleteItem )
 
 
     }
