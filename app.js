@@ -1,5 +1,15 @@
 //-- Budget Controller----//
 const budgetController = ( function () {
+
+    const data = {
+        allIncomes: [],
+        allExpenses: [],
+        totalIncome: 0,
+        totalExpenses: 0,
+        budget: 0,
+        percentage: -1,
+    }
+
     const Income = function ( id, description, amount ) {
         this.id = id;
         this.description = description;
@@ -25,13 +35,6 @@ const budgetController = ( function () {
     }
 
 
-    const data = {
-        allIncomes: [],
-        allExpenses: [],
-        totalIncome: 0,
-        totalExpenses: 0
-    }
-
     return {
         addItem: function ( itemObj ) {
             let item;
@@ -46,14 +49,27 @@ const budgetController = ( function () {
                 data.allExpenses.push( item );
                 data.totalExpenses = item.getTotalExpense( data.allExpenses )
             }
-            return item;
+            data.budget = data.totalIncome - data.totalExpenses;
+            data.percentage = ( data.totalIncome > 0 ) ? Math.round( ( data.totalExpenses / data.totalIncome ) * 100 ) : -1;
+            return { item, type };
         },
-        data
+        data,
+        getBudget () {
+            return {
+                budget: data.budget,
+                percentage: data.percentage,
+                totalIncome: data.totalIncome,
+                totalExpenses: data.totalExpenses
+            }
+        }
+
 
     }
 
+}
 
-} )();
+
+)();
 
 
 
@@ -66,24 +82,53 @@ const UIController = ( function () {
         amountClass: ".add__value",
         addButtonClass: '.add__btn',
         incomeListClass: '.income__list',
-        expenseListClass: '.expenses__list'
+        expenseListClass: '.expenses__list',
+        budgetValue: '.budget__value',
+        budgetIncomeValue: '.budget__income--value',
+        budgetExpenseValue: '.budget__expenses--value',
+        budgetExpensePercentage: '.budget__expenses--percentage'
     }
-    const addItem = function ( itemObj, type ) {
+    const addItem = function ( { item, type } ) {
         const incomeListTemplate = ( type === 'inc' ) ? document.querySelector( DOMStrings.incomeListClass )
             : document.querySelector( DOMStrings.expenseListClass );
+
         const symbol = ( type === 'inc' ) ? '+' : '-';
-        const { amount, description } = itemObj
-        const item = `<div class="item clearfix" id="income-0">
-       <div class="item__description">${description}</div>
-       <div class="right clearfix">
-           <div class="item__value">${symbol} ${amount}</div>
-           <div class="item__delete">
-               <button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button>
-           </div>
-       </div>
-   </div>`
-        incomeListTemplate.insertAdjacentHTML( "beforeend", item );
+
+        const { amount, description, id } = item
+
+        const itemTemplate = `
+            <div class="item clearfix" data-value="${type}-${id}">
+                <div class="item__description">${description}</div>
+                <div class="right clearfix">
+                    <div class="item__value">${symbol} ${amount}</div>
+                    <div class="item__delete">
+                        <button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button>
+                    </div>
+                </div>
+        </div>`
+
+        incomeListTemplate.insertAdjacentHTML( "beforeend", itemTemplate );
     }
+    const clearInputField = function ( ...args ) {
+        args.forEach( item => {
+            document.querySelector( item ).value = "";
+        } )
+        document.querySelector( args[1] ).focus()
+
+    }
+    const validateFields = function ( ...args ) {
+        return args.every( field => document.querySelector( field ).value !== "" );
+    }
+
+    const updateBudget = function ( { budget, percentage, totalExpenses, totalIncome } ) {
+        document.querySelector( DOMStrings.budgetValue ).innerText = budget;
+        document.querySelector( DOMStrings.budgetExpenseValue ).innerText = `- ${totalExpenses}`;
+        document.querySelector( DOMStrings.budgetIncomeValue ).innerText = `+ ${totalIncome}`;
+        ( percentage > 0 ) ? document.querySelector( DOMStrings.budgetExpensePercentage ).innerText = `${percentage} %` :
+            document.querySelector( DOMStrings.budgetExpensePercentage ).innerText = "---";
+
+    }
+
 
 
     return {
@@ -94,7 +139,10 @@ const UIController = ( function () {
             return { type, description, amount };
         },
         DOMStrings,
-        addItem
+        addItem,
+        clearInputField,
+        validateFields,
+        updateBudget,
     }
 
 } )()
@@ -105,20 +153,30 @@ const UIController = ( function () {
 //-- Global App Controller----//
 const appController = ( function ( UICtrl, budgtCtrl ) {
     const ctrlAddItem = function () {
-        // Get the value of the input data
-        const inputValues = UIController.getInput();
+        const isValidated = UICtrl.validateFields( UICtrl.DOMStrings.amountClass, UICtrl.DOMStrings.amountClass );
+        if ( isValidated ) {
+            // Get the value of the input data
+            const inputValues = UICtrl.getInput();
 
-        //  Add the value to the budgetController
-        budgtCtrl.addItem( inputValues );
-        console.log( budgetController.data );
+            //  Add the value to the budgetController
+            const itemObj = budgtCtrl.addItem( inputValues );
+            console.log( budgetController.data );
 
-        // Add the value to the user interface
+            // Add the value to the user interface
+            UICtrl.addItem( itemObj );
 
-        UIController.addItem( inputValues, inputValues.type );
+            // clear the user input field
+            UICtrl.clearInputField( UICtrl.DOMStrings.amountClass, UICtrl.DOMStrings.descriptionClass );
 
-        // Calculate the Budget
+            // Calculate the Budget
+            const budget = budgtCtrl.getBudget();
 
-        // Display the Budget on the UI
+            // Display the Budget on the UI
+            UICtrl.updateBudget( budget )
+
+
+        }
+
 
 
     }
@@ -137,6 +195,12 @@ const appController = ( function ( UICtrl, budgtCtrl ) {
         init: function () {
             console.log( "App has started" )
             setUpEventListeners();
+            UICtrl.updateBudget( {
+                budget: 0,
+                totalExpenses: 0,
+                totalIncome: 0,
+                percentage: '---'
+            } )
         }
     }
 
