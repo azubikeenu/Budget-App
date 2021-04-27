@@ -94,7 +94,6 @@ const budgetController = ( function () {
             calculateBudgetFields();
             return { item, type };
         },
-        data,
         getBudget () {
             return {
                 budget: data.budget,
@@ -268,7 +267,6 @@ const appController = ( function ( UICtrl, budgtCtrl ) {
 
             //  Add the value to the budgetController
             const itemObj = budgtCtrl.addItem( inputValues );
-            console.log( budgetController.data );
 
             // Add the value to the user interface
             UICtrl.addItem( itemObj );
